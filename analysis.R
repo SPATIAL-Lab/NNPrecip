@@ -383,6 +383,45 @@ for(i in 1:4){
 
 View(amt.eff)
 
+##repeat without event samples
+
+#Evaluate relationship with precipitation amount
+amt.eff.ne = data.frame("Period" = c("all", "pre", "m", "post"), 
+                     "d2H.beta" = numeric(4),
+                     "d2H.rsq" = numeric(4), "d18O.beta" = numeric(4),
+                     "d18O.rsq" = numeric(4), "d18O.e.beta" = numeric(4),
+                     "d18O.e.rsq" = numeric(4))
+
+esamps = read.xlsx("data/201020_eventVsMonthly.xlsx", sheet = 1)
+esamps = esamps[esamps$Event == "e",]
+esamps = esamps$SampleID
+
+p.ne = p[!(p$Sample_ID %in% esamps),]
+p.pre.ne = p.pre[!(p.pre$Sample_ID %in% esamps),]
+p.m.ne = p.m[!(p.m$Sample_ID %in% esamps),]
+p.post.ne = p.post[!(p.m$Sample_ID %in% esamps),]
+  
+pdat.ne = list(p.ne, p.pre.ne, p.m.ne, p.post.ne)
+
+for(i in 1:4){
+  d2H.mod = lm(d2H ~ Amount, pdat.ne[[i]])
+  d18O.mod = lm(d18O ~ Amount, pdat.ne[[i]])
+  d18O.e.mod = lm((d18O - d18O.ec) ~ Amount, pdat.ne[[i]])
+  
+  amt.eff.ne$d2H.beta[i] = round(d2H.mod$coefficients[2], 3)
+  amt.eff.ne$d2H.rsq[i] = round(summary(d2H.mod)$adj.r.squared, 3)
+  amt.eff.ne$d18O.beta[i] = round(d18O.mod$coefficients[2], 3)
+  amt.eff.ne$d18O.rsq[i] = round(summary(d18O.mod)$adj.r.squared, 3)
+  amt.eff.ne$d18O.e.beta[i] = round(d18O.e.mod$coefficients[2], 3)
+  amt.eff.ne$d18O.e.rsq[i] = round(summary(d18O.e.mod)$adj.r.squared, 3)
+  
+  print(summary(d2H.mod))
+  print(summary(d18O.mod))
+  print(summary(d18O.e.mod))
+}
+
+View(amt.eff.ne)
+
 # Clusters -----
 
 ###load cluster groups from 2018 paper
@@ -424,9 +463,9 @@ elev.eff = data.frame("Period" = c("all", "pre", "m", "post"),
                      "d18O.e.rsq" = numeric(4))
 
 for(i in 1:4){
-  d2H.mod = lm(d2H ~ Elevation, pdat[[i]])
-  d18O.mod = lm(d18O ~ Elevation, pdat[[i]])
-  d18O.e.mod = lm((d18O - d18O.ec) ~ Elevation, pdat[[i]])
+  d2H.mod = lm(d2H ~ Elevation, pdat.ne[[i]])
+  d18O.mod = lm(d18O ~ Elevation, pdat.ne[[i]])
+  d18O.e.mod = lm((d18O - d18O.ec) ~ Elevation, pdat.ne[[i]])
   
   elev.eff$d2H.beta[i] = round(d2H.mod$coefficients[2] * 1000, 1)
   elev.eff$d2H.rsq[i] = round(summary(d2H.mod)$adj.r.squared, 3)
