@@ -520,8 +520,39 @@ for(i in 1:length(sites)){
                         "cov" = source.cov))
 }
 
-library(mvtnorm)
+#compare only wettest 30% of months
 
+#sources
+amts = p.m.ne$Amount
+co = quantile(amts, 0.7, na.rm = TRUE)
+p.m.ne.30 = p.m.ne[p.m.ne$Amount >= co,]
+p.m.ne.30 = p.m.ne.30[!(is.na(p.m.ne.30$Amount)),]
+sites.30 = unique(p.m.ne.30$Site_ID)
+smeans.m.30 = data.frame("Site_ID" = character(), "d2H.m" = numeric(),
+                      "d18O.m" = numeric(), "d2H.se" = numeric(),
+                      "d18O.se" = numeric(), "cov" = numeric())
+for(i in 1:length(sites.30)){
+  psub = p.m.ne.30[p.m.ne.30$Site_ID == sites.30[i],]
+  source.h = mean(psub$d2H) 
+  source.o = mean(psub$d18O)
+  source.h.se = sd(psub$d2H) / sqrt(sum(!is.na(psub$d2H)))
+  source.o.se = sd(psub$d18O) / sqrt(sum(!is.na(psub$d18O)))
+  source.cov = sqrt(cov(psub$d2H, psub$d18O)) / sqrt(nrow(psub))
+  smeans.m.30 = rbind(smeans.m.30, data.frame("Site_ID" = sites[i], 
+                                        "d2H.m" = source.h,
+                                        "d18O.m" = source.o, 
+                                        "d2H.se" = source.h.se,
+                                        "d18O.se" = source.o.se,
+                                        "cov" = source.cov))
+}
+
+#compare - 
+for(i in 2:3){
+  print(paste(mean(smeans.m[,i]), mean(smeans.m.30[,i])))
+}
+
+library(mvtnorm)
+#with all summer values
 HO.m = matrix(nrow = 1e5, ncol = 2)
 for(i in 1:1e5){
   j = sample.int(length(sites), 3)
@@ -547,11 +578,33 @@ for(i in 1:1e5){
                mean(HO1[2], HO2[2], HO3[2]))
 }
 
-H = mean(HO.m[,1])
-O = mean(HO.m[,2])
-H.sd = sd(HO.m[,1])
-O.sd = sd(HO.m[,2])
-HO.cov = cov(HO.m[,1], HO.m[,2])
+#with 30% wettest summer values, first remove singular values
+smeans.m.30 = smeans.m.30[!is.na(smeans.m.30$d2H.se),]
+sites.30 = unique(smeans.m.30$Site_ID)
+HO.m.30 = matrix(nrow = 1e5, ncol = 2)
+for(i in 1:1e5){
+  j = sample.int(length(sites.30), 3)
+  HO1 = rmvnorm(1, c(smeans.m.30[j[1], 2],
+                     smeans.m.30[j[1], 3]), 
+                matrix(c(smeans.m.30[j[1], 4]^2,
+                         smeans.m.30[j[1], 6]^2,
+                         smeans.m.30[j[1], 6]^2,
+                         smeans.m.30[j[1], 5]^2), nrow = 2))
+  HO2 = rmvnorm(1, c(smeans.m.30[j[2], 2],
+                     smeans.m.30[j[2], 3]), 
+                matrix(c(smeans.m.30[j[2], 4]^2,
+                         smeans.m.30[j[2], 6]^2,
+                         smeans.m.30[j[2], 6]^2,
+                         smeans.m.30[j[2], 5]^2), nrow = 2))
+  HO3 = rmvnorm(1, c(smeans.m.30[j[3], 2],
+                     smeans.m.30[j[3], 3]), 
+                matrix(c(smeans.m.30[j[3], 4]^2,
+                         smeans.m.30[j[3], 6]^2,
+                         smeans.m.30[j[3], 6]^2,
+                         smeans.m.30[j[3], 5]^2), nrow = 2))
+  HO.m.30[i,] = c(mean(HO1[1], HO2[1], HO3[1]), 
+               mean(HO1[2], HO2[2], HO3[2]))
+}
 
 p.w.all = read.xlsx("data/winterPrecip.xlsx", sheet = 2)
 
@@ -582,18 +635,29 @@ w.mod = lm(d18O ~ Site, p.w.all)
 summary(w.mod)
 anova(w.mod)
 
-#combine
-H = c(H, mean(p.w.all$d2H))
-O = c(O, mean(p.w.all$d18O))
-H.sd = c(H.sd, sd(p.w.all$d2H))
-O.sd = c(O.sd, sd(p.w.all$d18O))
-HO.cov = c(HO.cov, cov(p.w.all$d2H, p.w.all$d18O))
+#combine summer and winter, all data
+H = c(mean(HO.m[,1]), mean(p.w.all$d2H))
+O = c(mean(HO.m[,2]), mean(p.w.all$d18O))
+H.sd = c(sd(HO.m[,1]), sd(p.w.all$d2H))
+O.sd = c(sd(HO.m[,2]), sd(p.w.all$d18O))
+HO.cov = c(cov(HO.m[,1], HO.m[,2]), 
+           cov(p.w.all$d2H, p.w.all$d18O))
 
 hsource = iso(H, O, H.sd, O.sd, HO.cov)
 
+#combine summer and winter, wettest 30%
+H = c(mean(HO.m[,1]), mean(p.w.all$d2H))
+O = c(mean(HO.m[,2]), mean(p.w.all$d18O))
+H.sd = c(sd(HO.m[,1]), sd(p.w.all$d2H))
+O.sd = c(sd(HO.m[,2]), sd(p.w.all$d18O))
+HO.cov = c(cov(HO.m[,1], HO.m[,2]), 
+           cov(p.w.all$d2H, p.w.all$d18O))
+
+hsource.30 = iso(H, O, H.sd, O.sd, HO.cov)
+
 #groundwater
 library(doParallel)
-registerDoParallel()
+registerDoParallel(cores = 12)
 
 sites = unique(g$Site_ID)
 
