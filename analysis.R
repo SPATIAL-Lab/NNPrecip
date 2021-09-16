@@ -344,6 +344,23 @@ for(i in 1:4){
   pcp.seas = rbind(pcp.seas, pcp.add)
 }
 
+#correlations
+p.yr.sub = data.frame("Year" = c(2014, 2015, 2016, 2017))
+p.yr.sub$d18O.pre = p.yr$d18O.m[p.yr$Period == "pre"]
+p.yr.sub$d18O.m = p.yr$d18O.m[p.yr$Period == "m"]
+p.yr.sub$d18O.post = p.yr$d18O.m[p.yr$Period == "post"]
+p.yr.sub$d18O.pre.ec = p.yr$d18O.ec.m[p.yr$Period == "pre"]
+p.yr.sub$d18O.m.ec = p.yr$d18O.ec.m[p.yr$Period == "m"]
+p.yr.sub$d18O.post.ec = p.yr$d18O.ec.m[p.yr$Period == "post"]
+
+p.pcp.yr = merge(pcp.seas, p.yr.sub)
+summary(lm(d18O.pre~Amt.pre, p.pcp.yr))
+summary(lm(d18O.m~Amt.m, p.pcp.yr))
+summary(lm(d18O.post~Amt.post, p.pcp.yr))
+summary(lm(d18O.pre.ec~Amt.pre, p.pcp.yr))
+summary(lm(d18O.m.ec~Amt.m, p.pcp.yr))
+summary(lm(d18O.post.ec~Amt.post, p.pcp.yr))
+
 #recreate p including all data
 p = rbind(p.pre, p.m, p.post)
 
@@ -484,12 +501,12 @@ View(elev.eff)
 # Mixing -----
 
 #sources
-sites = unique(p.m$Site_ID)
+sites = unique(p.m.ne$Site_ID)
 smeans.m = data.frame("Site_ID" = character(), "d2H.m" = numeric(),
                     "d18O.m" = numeric(), "d2H.se" = numeric(),
                     "d18O.se" = numeric(), "cov" = numeric())
 for(i in 1:length(sites)){
-  psub = p.m[p.m$Site_ID == sites[i],]
+  psub = p.m.ne[p.m.ne$Site_ID == sites[i],]
   source.h = mean(psub$d2H) 
   source.o = mean(psub$d18O)
   source.h.se = sd(psub$d2H) / sqrt(sum(!is.na(psub$d2H)))
@@ -536,16 +553,41 @@ H.sd = sd(HO.m[,1])
 O.sd = sd(HO.m[,2])
 HO.cov = cov(HO.m[,1], HO.m[,2])
 
+p.w.all = read.xlsx("data/winterPrecip.xlsx", sheet = 2)
+
 p.w = p[p$m.n %in% c(11, 12, 1, 2, 3),]
-for(i in 1:1e5){
-  j = sample.int(nrow(p.w), 3)
-  HO.m[i,] = c(mean(p.w$d2H[j]), mean(p.w$d18O[j]))
-}
-H = c(H, mean(HO.m[,1]))
-O = c(O, mean(HO.m[,2]))
-H.sd = c(H.sd, sd(HO.m[,1]))
-O.sd = c(O.sd, sd(HO.m[,2]))
-HO.cov = c(HO.cov, cov(HO.m[,1], HO.m[,2]))
+#remove a few random samples
+p.w = p.w[p.w$Sample_ID != "NN-740",]
+p.w = p.w[p.w$Sample_ID != "18-016_NN-2063",]
+#get Rock Springs event data
+p.w.rs = p.w[p.w$Site_ID == "NN052",]
+p.w.rs = p.w.rs[p.w.rs$Sample_ID != "NN-974",]
+p.w.new = data.frame("WY_ave_ID" = 
+                       c("RS-2017", "RS-2016", "BG-2017"),
+                     "d2H" = 
+                       c(mean(p.w.rs$d2H),
+                         p.w$d2H[p.w$Sample_ID == "NN-974"],
+                         p.w$d2H[p.w$Sample_ID == "17-185_NN-1563"]),
+                     "d18O" = 
+                       c(mean(p.w.rs$d18O),
+                         p.w$d18O[p.w$Sample_ID == "NN-974"],
+                         p.w$d18O[p.w$Sample_ID == "17-185_NN-1563"]))
+
+#combine
+p.w.all = rbind(p.w.all, p.w.new)
+p.w.all$Site = substr(p.w.all$WY_ave_ID, 1, 2)
+
+#ANOVA
+w.mod = lm(d18O ~ Site, p.w.all)
+summary(w.mod)
+anova(w.mod)
+
+#combine
+H = c(H, mean(p.w.all$d2H))
+O = c(O, mean(p.w.all$d18O))
+H.sd = c(H.sd, sd(p.w.all$d2H))
+O.sd = c(O.sd, sd(p.w.all$d18O))
+HO.cov = c(HO.cov, cov(p.w.all$d2H, p.w.all$d18O))
 
 hsource = iso(H, O, H.sd, O.sd, HO.cov)
 
