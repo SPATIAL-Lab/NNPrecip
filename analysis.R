@@ -6,6 +6,7 @@ d = d[[1]]
 
 #write data
 save(d, file = "data/NNData.rda")
+load("data/NNData.rda")
 
 #average data w replicate analyses
 t = table(d$Sample_ID)
@@ -648,11 +649,11 @@ HO.cov = c(cov(HO.m[,1], HO.m[,2]),
 hsource = iso(H, O, H.sd, O.sd, HO.cov)
 
 #combine summer and winter, wettest 30%
-H = c(mean(HO.m[,1]), mean(p.w.all$d2H))
-O = c(mean(HO.m[,2]), mean(p.w.all$d18O))
-H.sd = c(sd(HO.m[,1]), sd(p.w.all$d2H))
-O.sd = c(sd(HO.m[,2]), sd(p.w.all$d18O))
-HO.cov = c(cov(HO.m[,1], HO.m[,2]), 
+H = c(mean(HO.m.30[,1]), mean(p.w.all$d2H))
+O = c(mean(HO.m.30[,2]), mean(p.w.all$d18O))
+H.sd = c(sd(HO.m.30[,1]), sd(p.w.all$d2H))
+O.sd = c(sd(HO.m.30[,2]), sd(p.w.all$d18O))
+HO.cov = c(cov(HO.m.30[,1], HO.m.30[,2]), 
            cov(p.w.all$d2H, p.w.all$d18O))
 
 hsource.30 = iso(H, O, H.sd, O.sd, HO.cov)
@@ -768,6 +769,11 @@ stopImplicitCluster()
 save(g.mix, s.mix, r.mix, l.mix, 
      g.mix.30, s.mix.30, r.mix.30, l.mix.30, file = "out/mix.rda")
 
+for(i in list(g.mix, s.mix, r.mix, l.mix, 
+           g.mix.30, s.mix.30, r.mix.30, l.mix.30)){
+  print(paste(median(i$s1_fraction), median(i$E)))
+}
+
 # Tucson -----
 tmp = read.csv("data/tucson.csv")
 plot(tmp$Month, tmp$d18O)
@@ -821,8 +827,9 @@ axis(2)
 box()
 abline(10, 8)
 abline(lm(p.pre$d2H ~ p.pre$d18O), lty = 3)
-points(p.pre$d18O, p.pre$d2H, pch = p.pre$y - 1993, 
-       bg = cols[p.pre$y - 2013])
+points(p.pre$d18O[order(p.pre$y)], p.pre$d2H[order(p.pre$y)], 
+       pch = p.pre$y[order(p.pre$y)] - 1993, 
+       bg = cols[p.pre$y[order(p.pre$y)] - 2013])
 text(-18, 48, "(a)")
 
 par(mai = c(0.3, 0.3, 0.1, 0.1))
@@ -832,8 +839,9 @@ axis(2, labels = FALSE)
 box()
 abline(10, 8)
 abline(lm(p.m$d2H ~ p.m$d18O), lty = 3)
-points(p.m$d18O, p.m$d2H, pch = p.m$y - 1993, 
-       bg = cols[p.m$y - 2013])
+points(p.m$d18O[order(p.m$y)], p.m$d2H[order(p.m$y)], 
+       pch = p.m$y[order(p.m$y)] - 1993, 
+       bg = cols[p.m$y[order(p.m$y)] - 2013])
 text(-18, 48, "(b)")
 legend(5, -80, c("2014", "2015", "2016", "2017"),
        pch = c(21, 22, 23, 24), pt.bg = cols, bty = "n")
@@ -844,8 +852,9 @@ plot(p$d18O, p$d2H, type = "n",
      ylab = expression(delta^{"2"}*"H (VSMOW)"))
 abline(10, 8)
 abline(lm(p.post$d2H ~ p.post$d18O), lty = 3)
-points(p.post$d18O, p.post$d2H, pch = p.post$y - 1993, 
-       bg = cols[p.post$y - 2013])
+points(p.post$d18O[order(p.post$y)], p.post$d2H[order(p.post$y)], 
+       pch = p.post$y[order(p.post$y)] - 1993, 
+       bg = cols[p.post$y[order(p.post$y)] - 2013])
 text(-18, 48, "(c)")
 
 par(mai = c(1, 0.3, 0.1, 0.1))
@@ -919,7 +928,62 @@ text(-19, -18, "(d)")
 
 dev.off()
 
-###
+### Figure 4
+
+png("out/Fig4.png", width = 4, height = 7.2, units = "in", res = 600)
+
+layout(matrix(c(1, 2, 3), ncol = 1), 
+       heights = c(lcm(2.3 * 2.54), lcm(2.3 * 2.54), lcm(2.6 * 2.54)))
+
+#panel A
+cols = rep(c(rgb(0.7, 0, 0), rgb(0, 0, 1), rgb(0, 0.5, 0)), 4)
+par(mai = c(0.3, 0.6, 0.1, 0.1))
+boxplot(pcp.pre$Amount[pcp.pre$Year == 2014], pcp.m$Amount[pcp.m$Year == 2014],
+        pcp.post$Amount[pcp.post$Year == 2014], pcp.pre$Amount[pcp.pre$Year == 2015],
+        pcp.m$Amount[pcp.m$Year == 2015], pcp.post$Amount[pcp.post$Year == 2015],
+        pcp.pre$Amount[pcp.pre$Year == 2016], pcp.m$Amount[pcp.m$Year == 2016],
+        pcp.post$Amount[pcp.post$Year == 2016], pcp.pre$Amount[pcp.pre$Year == 2017],
+        pcp.m$Amount[pcp.m$Year == 2017], pcp.post$Amount[pcp.post$Year == 2017],
+        outline = FALSE, at = c(1,2,3,5,6,7,9,10,11,13,14,15),
+        col = cols, ylab = "Precipitation (mm)", axes = FALSE)
+axis(2)
+axis(1, at = c(2, 6, 10, 14), labels = FALSE)
+box()
+text(0.5, 107, "(a)")
+
+#panel B
+boxplot(p.pre.ne$d18O[p.pre.ne$y == 2014], p.m.ne$d18O[p.m.ne$y == 2014],
+        p.post.ne$d18O[p.post.ne$y == 2014], p.pre.ne$d18O[p.pre.ne$y == 2015],
+        p.m.ne$d18O[p.m.ne$y == 2015], p.post.ne$d18O[p.post.ne$y == 2015],
+        p.pre.ne$d18O[p.pre.ne$y == 2016], p.m.ne$d18O[p.m.ne$y == 2016],
+        p.post.ne$d18O[p.post.ne$y == 2016], p.pre.ne$d18O[p.pre.ne$y == 2017],
+        p.m.ne$d18O[p.m.ne$y == 2017], p.post.ne$d18O[p.post.ne$y == 2017],
+        outline = FALSE, at = c(1,2,3,5,6,7,9,10,11,13,14,15),
+        col = cols, ylab = expression(delta^{18}*"O (VSMOW)"), axes = FALSE)
+axis(2)
+axis(1, at = c(2, 6, 10, 14), labels = FALSE)
+box()
+text(0.5, 10.5, "(b)")
+
+#panel C
+par(mai = c(0.6, 0.6, 0.1, 0.1))
+boxplot(p.pre.ne$d18O.ec[p.pre.ne$y == 2014], p.m.ne$d18O.ec[p.m.ne$y == 2014],
+        p.post.ne$d18O.ec[p.post.ne$y == 2014], p.pre.ne$d18O.ec[p.pre.ne$y == 2015],
+        p.m.ne$d18O.ec[p.m.ne$y == 2015], p.post.ne$d18O.ec[p.post.ne$y == 2015],
+        p.pre.ne$d18O.ec[p.pre.ne$y == 2016], p.m.ne$d18O.ec[p.m.ne$y == 2016],
+        p.post.ne$d18O.ec[p.post.ne$y == 2016], p.pre.ne$d18O.ec[p.pre.ne$y == 2017],
+        p.m.ne$d18O.ec[p.m.ne$y == 2017], p.post.ne$d18O.ec[p.post.ne$y == 2017],
+        outline = FALSE, at = c(1,2,3,5,6,7,9,10,11,13,14,15),
+        col = cols, ylab = expression("E-corrected "*delta^{18}*"O (VSMOW)"), axes = FALSE)
+axis(2)
+axis(1, at = c(2, 6, 10, 14), labels = c(2014, 2015, 2016, 2017))
+box()
+text(0.5, -1.7, "(c)")
+
+dev.off()
+
+### Figure 4 - old version
+
 png("out/Fig4.png", width = 4, height = 7.2, units = "in", res = 600)
 
 layout(matrix(c(1, 2, 3), ncol = 1), 
@@ -1116,18 +1180,10 @@ dev.off()
 
 ### Figure 5
 
-png("out/Fig5.png", width = 4, height = 7.5, units = "in", res = 600)
+png("out/Fig5.png", width = 4, height = 7.2, units = "in", res = 600)
 
-layout(matrix(c(1, 2, 3, 4), ncol = 1), 
-       heights = c(lcm(0.3 * 2.54), lcm(2.3 * 2.54), lcm(2.3 * 2.54), lcm(2.6 * 2.54)))
-
-#time periods
-par(mai = c(0, 0, 0, 0))
-plot(tser$mt[tser$cl == 1], tser$o[tser$cl == 1],
-     type = "n", ylim = c(0, 2), axes = FALSE, xlab = "", ylab = "")
-lines(c(3.8, 6.5), c(1, 1), lwd = 4, col = rgb(0.7, 0, 0))
-lines(c(6.5, 9.5), c(1, 1), lwd = 4, col = rgb(0, 0, 0.9))
-lines(c(9.5, 10.2), c(1, 1), lwd = 4, col = rgb(0, 0.5, 0))
+layout(matrix(c(1, 2, 3), ncol = 1), 
+       heights = c(lcm(2.3 * 2.54), lcm(2.3 * 2.54), lcm(2.6 * 2.54)))
 
 #d18O per area
 par(mai = c(0.3, 0.6, 0.1, 0.1))
@@ -1180,27 +1236,46 @@ polygon(c(3.8, 3.8, 4.2, 4.2), c(8.1, 7.5, 7.5, 8.1), border = NA,
         col = "white")
 text(4, 7.8, "(c)")
 
+lines(c(3.5, 6.5), c(0, 0), lwd = 4, col = rgb(0.7, 0, 0))
+lines(c(6.5, 9.5), c(0, 0), lwd = 4, col = rgb(0, 0, 0.9))
+lines(c(9.5, 10.5), c(0, 0), lwd = 4, col = rgb(0, 0.5, 0))
+box()
+
 dev.off()
 
 ### Figure 8
-
+cols = rep(c("lightgray", "white"), 4)
+  
 png("out/Fig8.png", units = "in", width = 5, height = 5.7, 
     res = 600)
 layout(matrix(c(1, 2), nrow = 2), 
        heights = c(lcm(2.6 * 2.54), lcm(3.1 * 2.54)))
 
 par(mai = c(0.1, 1, 0.1, 0.1))
-boxplot(g.mix$s1_fraction, s.mix$s1_fraction, 
-        r.mix$s1_fraction, l.mix$s1_fraction, 
+boxplot(g.mix$s1_fraction, g.mix.30$s1_fraction,
+        s.mix$s1_fraction, s.mix.30$s1_fraction,
+        r.mix$s1_fraction, r.mix.30$s1_fraction,
+        l.mix$s1_fraction, l.mix.30$s1_fraction,
+        at = c(1,2,3.5,4.5,6,7,8.5,9.5),
+        col = cols, axes = FALSE,
         outline = FALSE, ylab = "NAM source fraction")
-text(0.5, 0.55, "(a)")
+axis(2)
+axis(1, at = c(1.5, 4, 6.5, 9), labels = FALSE)
+box()
+text(0.5, 0.62, "(a)")
 
 par(mai = c(0.6, 1, 0.1, 0.1))
-boxplot(g.mix$E, s.mix$E, 
-        r.mix$E, l.mix$E, 
-        outline = FALSE, names = c("Ground", "Spring",
-                                   "Stream", "Lake"),
-        ylab = "Evaporation index")
-text(0.5, 12.6, "(b)")
+boxplot(g.mix$E, g.mix.30$E,
+        s.mix$E, s.mix.30$E,
+        r.mix$E, r.mix.30$E,
+        l.mix$E, l.mix.30$E,
+        at = c(1,2,3.5,4.5,6,7,8.5,9.5),
+        col = cols, axes = FALSE,
+        outline = FALSE, ylab = "Evaporation index")
+axis(2)
+axis(1, at = c(1.5, 4, 6.5, 9), 
+     labels = c("Ground", "Spring", "Stream", "Lake"))
+box()
+text(0.5, 13, "(b)")
 
 dev.off()
