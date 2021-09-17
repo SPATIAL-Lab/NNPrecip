@@ -196,7 +196,7 @@ ec.data = list(
 )
 
 library(doParallel)
-registerDoParallel()
+registerDoParallel(cores = 11)
 
 ec.data = foreach(i = 1:length(ec.data)) %dopar% {
   for(j in 1:nrow(ec.data[[i]][[1]])){
@@ -551,6 +551,7 @@ for(i in 2:3){
   print(paste(mean(smeans.m[,i]), mean(smeans.m.30[,i])))
 }
 
+#now sample summer values
 library(mvtnorm)
 #with all summer values
 HO.m = matrix(nrow = 1e5, ncol = 2)
@@ -606,6 +607,7 @@ for(i in 1:1e5){
                mean(HO1[2], HO2[2], HO3[2]))
 }
 
+#get external data for winter
 p.w.all = read.xlsx("data/winterPrecip.xlsx", sheet = 2)
 
 p.w = p[p$m.n %in% c(11, 12, 1, 2, 3),]
@@ -655,13 +657,14 @@ HO.cov = c(cov(HO.m[,1], HO.m[,2]),
 
 hsource.30 = iso(H, O, H.sd, O.sd, HO.cov)
 
+#mixing with all summer values
 #groundwater
 library(doParallel)
-registerDoParallel(cores = 12)
+registerDoParallel(cores = 11)
 
 sites = unique(g$Site_ID)
 
-g.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
+g.mix = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
   g.sub = g[g$Site_ID == sites[i],]
   obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
 
@@ -674,7 +677,7 @@ g.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
 #rivers
 sites = unique(r$Site_ID)
 
-r.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
+r.mix = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
   g.sub = r[r$Site_ID == sites[i],]
   obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
   
@@ -687,7 +690,7 @@ r.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
 #lakes
 sites = unique(l$Site_ID)
 
-l.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
+l.mix = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
   g.sub = l[l$Site_ID == sites[i],]
   obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
   post = mixSource(obs, hsource, c(5, 0.3), shp = 1,
@@ -699,7 +702,7 @@ l.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
 #springs
 sites = unique(s$Site_ID)
 
-s.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
+s.mix = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
   g.sub = s[s$Site_ID == sites[i],]
   obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
   
@@ -708,9 +711,62 @@ s.mix = foreach(i = 1:length(sites), .combine = rbind) %dopar% {
   
   post$results
 }
+
+#mixing with 30% wettest summer
+#groundwater
+sites = unique(g$Site_ID)
+
+g.mix.30 = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
+  g.sub = g[g$Site_ID == sites[i],]
+  obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
+  
+  post = mixSource(obs, hsource.30, c(5, 0.3), shp = 1,
+                   ngens = 2e5)
+  
+  post$results
+}
+
+#rivers
+sites = unique(r$Site_ID)
+
+r.mix.30 = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
+  g.sub = r[r$Site_ID == sites[i],]
+  obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
+  
+  post = mixSource(obs, hsource.30, c(5, 0.3), shp = 1, 
+                   ngens = 2e5)
+  
+  post$results
+}
+
+#lakes
+sites = unique(l$Site_ID)
+
+l.mix.30 = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
+  g.sub = l[l$Site_ID == sites[i],]
+  obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
+  post = mixSource(obs, hsource.30, c(5, 0.3), shp = 1,
+                   ngens = 2e5)
+  
+  post$results
+}
+
+#springs
+sites = unique(s$Site_ID)
+
+s.mix.30 = foreach(i = 1:length(sites), .combine = rbind, .packages = "isoWater") %dopar% {
+  g.sub = s[s$Site_ID == sites[i],]
+  obs = iso(g.sub$d2H, g.sub$d18O, 0.4, 0.1, 0)
+  
+  post = mixSource(obs, hsource.30, c(5, 0.3), shp = 1,
+                   ngens = 2e5)
+  
+  post$results
+}
 stopImplicitCluster()
 
-save(g.mix, s.mix, r.mix, l.mix, file = "out/mix.rda")
+save(g.mix, s.mix, r.mix, l.mix, 
+     g.mix.30, s.mix.30, r.mix.30, l.mix.30, file = "out/mix.rda")
 
 # Tucson -----
 tmp = read.csv("data/tucson.csv")
@@ -1060,10 +1116,18 @@ dev.off()
 
 ### Figure 5
 
-png("out/Fig5.png", width = 4, height = 7.2, units = "in", res = 600)
+png("out/Fig5.png", width = 4, height = 7.5, units = "in", res = 600)
 
-layout(matrix(c(1, 2, 3), ncol = 1), 
-       heights = c(lcm(2.3 * 2.54), lcm(2.3 * 2.54), lcm(2.6 * 2.54)))
+layout(matrix(c(1, 2, 3, 4), ncol = 1), 
+       heights = c(lcm(0.3 * 2.54), lcm(2.3 * 2.54), lcm(2.3 * 2.54), lcm(2.6 * 2.54)))
+
+#time periods
+par(mai = c(0, 0, 0, 0))
+plot(tser$mt[tser$cl == 1], tser$o[tser$cl == 1],
+     type = "n", ylim = c(0, 2), axes = FALSE, xlab = "", ylab = "")
+lines(c(3.8, 6.5), c(1, 1), lwd = 4, col = rgb(0.7, 0, 0))
+lines(c(6.5, 9.5), c(1, 1), lwd = 4, col = rgb(0, 0, 0.9))
+lines(c(9.5, 10.2), c(1, 1), lwd = 4, col = rgb(0, 0.5, 0))
 
 #d18O per area
 par(mai = c(0.3, 0.6, 0.1, 0.1))
